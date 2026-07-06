@@ -1,0 +1,15 @@
+# Secrets — never commit these
+*.key
+.env
+
+# Runtime artifacts
+*.log
+*.pid
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# OS noise
+.DS_Store
