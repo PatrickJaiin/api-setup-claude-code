@@ -87,6 +87,9 @@ check_prereqs() {
 fetch_proxy() {
   if [ -d "$PROXY_DIR/.git" ]; then
     info "updating claude-code-proxy ..."
+    # Discard our compatibility patch so --ff-only can't conflict;
+    # apply_patches re-applies it after the pull.
+    git -C "$PROXY_DIR" checkout --quiet -- . 2>/dev/null || true
     if git -C "$PROXY_DIR" pull --ff-only --quiet; then
       ok "proxy updated"
     else
@@ -101,6 +104,69 @@ fetch_proxy() {
     err "proxy checkout looks broken: $PROXY_DIR/requirements.txt not found"
     exit 1
   fi
+}
+
+# Newer Claude Code clients put system-role entries inside the messages
+# array; upstream claude-code-proxy rejects those with a 422
+# ("Input should be 'user' or 'assistant'"). Patch it to accept them and
+# forward them as OpenAI system messages. Embedded here (rather than a
+# patches/ file) so `curl | bash` installs get it too.
+# NOTE: written to a temp file via plain heredoc redirect — capturing the
+# patch with "$(cat <<EOF ...)" trips over the unbalanced parenthesis in the
+# hunk header on macOS's stock bash 3.2.
+apply_patches() {
+  local patch_file
+  patch_file="$(mktemp "${TMPDIR:-/tmp}/glm-claude-patch.XXXXXX")"
+  cat >"$patch_file" <<'PATCH_EOF'
+diff --git a/src/conversion/request_converter.py b/src/conversion/request_converter.py
+--- a/src/conversion/request_converter.py
++++ b/src/conversion/request_converter.py
+@@ -47,7 +47,22 @@ def convert_claude_to_openai(
+     while i < len(claude_request.messages):
+         msg = claude_request.messages[i]
+
+-        if msg.role == Constants.ROLE_USER:
++        if msg.role == Constants.ROLE_SYSTEM:
++            # Newer Claude Code clients send system-role entries inside the
++            # messages array; forward them as OpenAI system messages.
++            if isinstance(msg.content, str):
++                system_text = msg.content
++            else:
++                system_text = "\n\n".join(
++                    block.text
++                    for block in msg.content
++                    if hasattr(block, "type") and block.type == Constants.CONTENT_TEXT
++                )
++            if system_text.strip():
++                openai_messages.append(
++                    {"role": Constants.ROLE_SYSTEM, "content": system_text.strip()}
++                )
++        elif msg.role == Constants.ROLE_USER:
+             openai_message = convert_claude_user_message(msg)
+             openai_messages.append(openai_message)
+         elif msg.role == Constants.ROLE_ASSISTANT:
+diff --git a/src/models/claude.py b/src/models/claude.py
+--- a/src/models/claude.py
++++ b/src/models/claude.py
+@@ -25,7 +25,7 @@ class ClaudeSystemContent(BaseModel):
+     text: str
+
+ class ClaudeMessage(BaseModel):
+-    role: Literal["user", "assistant"]
++    role: Literal["user", "assistant", "system"]
+     content: Union[str, List[Union[ClaudeContentBlockText, ClaudeContentBlockImage, ClaudeContentBlockToolUse, ClaudeContentBlockToolResult]]]
+
+ class ClaudeTool(BaseModel):
+PATCH_EOF
+  if git -C "$PROXY_DIR" apply --reverse --check "$patch_file" 2>/dev/null; then
+    ok "system-role compatibility patch already applied"
+  elif git -C "$PROXY_DIR" apply "$patch_file" 2>/dev/null; then
+    ok "system-role compatibility patch applied"
+  else
+    warn "compatibility patch did not apply — upstream may have fixed it already"
+    warn "if 'glm-claude -p' fails with a 422 role error, check the proxy repo"
+  fi
+  rm -f "$patch_file"
 }
 
 setup_venv() {
@@ -207,6 +273,7 @@ main() {
   check_prereqs
   mkdir -p "$GLM_CLAUDE_HOME"
   fetch_proxy
+  apply_patches
   setup_venv
   obtain_key
   write_env

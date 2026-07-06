@@ -120,6 +120,16 @@ Truncated tool output usually means the token cap is too low; glm-claude
 already raises `MAX_TOKENS_LIMIT` to 16384 (proxy default is 4096), and you
 can raise it further in `config.env`.
 
+**`API Error: 422 ... "Input should be 'user' or 'assistant'"`.** Newer
+Claude Code versions send system-role entries inside the `messages` array,
+which the upstream proxy rejects. The installer patches the proxy to accept
+and forward them; if you ever see this error, re-run `./install.sh` (it
+re-applies the patch after updating the proxy) and then `glm-claude restart`.
+
+**"claude.ai connectors are disabled" warning at launch.** Expected and
+harmless: glm-claude sets `ANTHROPIC_API_KEY` for the session so Claude Code
+talks to the local proxy instead of your claude.ai login.
+
 **Model-name gotcha (`/` in the model string).** Don't set
 `ANTHROPIC_MODEL="z-ai/glm-5.2"` — Claude Code can't handle a `/` in the model
 name. That's why glm-claude never sets `ANTHROPIC_MODEL` at all: the mapping

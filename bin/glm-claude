@@ -255,6 +255,7 @@ cmd_doctor() {
   fi
 
   if [ "$problems" -eq 0 ]; then
+    info "sending a test request through the proxy to the model (can take a minute) ..."
     resp="$(curl -sS --max-time "$REQUEST_TIMEOUT" -X POST "$(proxy_url)/v1/messages" \
       -H 'content-type: application/json' \
       -H 'x-api-key: proxy-local' \
