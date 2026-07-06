@@ -16,7 +16,7 @@ claude  ──Anthropic /v1/messages──▶  local proxy :8082  ──OpenAI /
 ## Install (one command)
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/<you>/glm-claude/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/PatrickJaiin/api-setup-claude-code/main/install.sh | bash
 ```
 
 Or from a clone: `./install.sh` (or `make install`).
@@ -24,7 +24,8 @@ Or from a clone: `./install.sh` (or `make install`).
 The installer checks prerequisites (`git`, `python3` >= 3.10, `curl`, the
 `claude` CLI), sets everything up under `~/.glm-claude/`, and asks for your
 NVIDIA API key (get one at <https://build.nvidia.com>) — or uses
-`$NVIDIA_API_KEY` if it's already exported.
+`$NVIDIA_API_KEY` if it's already exported. Re-running it is safe: it updates
+the proxy, reuses your stored key, and refreshes the config.
 
 ## Quick start
 
@@ -34,9 +35,37 @@ glm-claude                 # launch Claude Code on GLM
 glm-claude -p "2+2?"       # headless mode — all args pass through to claude
 ```
 
-Manage the background proxy with `glm-claude start | stop | restart | status | logs`.
+## Usage
 
-## Switching the model
+Running `glm-claude` with no subcommand starts the proxy if it isn't running,
+waits for it to become healthy, then launches `claude` with
+`ANTHROPIC_BASE_URL` pointed at the proxy. Anything you'd pass to `claude`
+works unchanged:
+
+```sh
+glm-claude                                   # interactive session
+glm-claude -p "summarize this repo"          # headless one-shot
+glm-claude -p "explain foo.py" --output-format json
+glm-claude --continue                        # resume the last conversation
+```
+
+The proxy keeps running in the background between sessions, so subsequent
+launches are instant. Manage it with:
+
+| Command              | What it does                                                        |
+| -------------------- | ------------------------------------------------------------------- |
+| `glm-claude start`   | Start the background proxy (no-op if already running)              |
+| `glm-claude stop`    | Stop the proxy and remove the PID file                              |
+| `glm-claude restart` | Stop + start (picks up `config.env` changes)                        |
+| `glm-claude status`  | Report state; exits 0 when running, 1 when not                      |
+| `glm-claude logs`    | `tail -f` the proxy log (`~/.glm-claude/proxy.log`)                 |
+| `glm-claude doctor`  | Smoke test: CLI, key, proxy health, live `/v1/messages` round trip  |
+| `glm-claude help`    | Show usage                                                          |
+
+Everything lives under `~/.glm-claude/`: the proxy checkout, python venv,
+`config.env`, `nvidia.key`, `proxy.log`, and `proxy.pid`.
+
+### Switching the model
 
 Copy `config.env.example` to `~/.glm-claude/config.env`, set:
 
@@ -45,9 +74,10 @@ GLM_MODEL="some-org/some-model"
 ```
 
 then run `glm-claude restart`. The proxy `.env` is regenerated from your
-config on every start.
+config on every start. Port, token limit, timeouts, and per-tier model
+overrides are all in the same file.
 
-## Rotating the API key
+### Rotating the API key
 
 ```sh
 rm ~/.glm-claude/nvidia.key
@@ -56,6 +86,25 @@ rm ~/.glm-claude/nvidia.key
 
 The key lives only in `~/.glm-claude/nvidia.key` and the proxy's `.env`
 (both mode 600); it is never committed or printed.
+
+## Uninstall
+
+```sh
+glm-claude stop                    # stop the background proxy
+make clean                         # from a clone: removes ~/.glm-claude after confirming
+```
+
+Or by hand, without a clone:
+
+```sh
+glm-claude stop
+rm -rf ~/.glm-claude               # proxy checkout, venv, config, stored API key, logs
+rm -f ~/.local/bin/glm-claude      # the launcher symlink
+```
+
+That removes every trace of glm-claude. Your `claude` CLI itself is untouched
+and keeps working against Anthropic as before — glm-claude only sets
+`ANTHROPIC_BASE_URL` for the sessions it launches, never globally.
 
 ## Troubleshooting
 
@@ -90,6 +139,3 @@ make test          # plain-bash test suite (no bats required)
 make shellcheck    # lint all scripts
 make clean         # remove ~/.glm-claude (asks first)
 ```
-
-Everything user-facing lives in `~/.glm-claude/`: the proxy checkout, venv,
-`config.env`, `nvidia.key`, `proxy.log`, `proxy.pid`.

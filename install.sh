@@ -2,7 +2,7 @@
 # install.sh — one-command setup for glm-claude: run Claude Code on GLM
 # (NVIDIA NIM) through a local Anthropic<->OpenAI translation proxy.
 #
-#   curl -fsSL https://raw.githubusercontent.com/<you>/glm-claude/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/PatrickJaiin/api-setup-claude-code/main/install.sh | bash
 #   # or, from a clone:
 #   ./install.sh
 set -euo pipefail
@@ -18,7 +18,7 @@ BIN_DIR="${GLM_CLAUDE_BIN_DIR:-$HOME/.local/bin}"
 PROXY_REPO_URL="${GLM_CLAUDE_PROXY_REPO:-https://github.com/fuergaosi233/claude-code-proxy.git}"
 # Raw URL of this project, used to fetch the launcher when install.sh is
 # piped from curl rather than run from a clone.
-RAW_URL="${GLM_CLAUDE_RAW_URL:-https://raw.githubusercontent.com/shivg/glm-claude/main}"
+RAW_URL="${GLM_CLAUDE_RAW_URL:-https://raw.githubusercontent.com/PatrickJaiin/api-setup-claude-code/main}"
 
 # --- defaults; override in ~/.glm-claude/config.env (see config.env.example) ---
 GLM_MODEL="z-ai/glm-5.2"
