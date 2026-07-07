@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Mock translation proxy for tests.
+"""Mock LiteLLM router for tests.
 
-Serves the two endpoints glm-claude touches: GET /health and
+Serves the two endpoints glm-claude touches: GET /health/liveliness and
 POST /v1/messages (returns a canned, well-formed Anthropic message).
 Usage: mock_proxy.py PORT
 """
@@ -20,7 +20,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        if self.path == "/health":
+        if self.path.startswith("/health"):
             self._send(200, {"status": "healthy"})
         else:
             self._send(404, {"error": "not found"})

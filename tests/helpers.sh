@@ -82,33 +82,25 @@ make_stub() {
   chmod 755 "$dir/$name"
 }
 
-# Stubs for install.sh runs: fake git/python3/claude that satisfy the
-# installer without touching the network or building a real venv.
+# Stubs for install.sh runs: fake python3/claude that satisfy the installer
+# without touching the network or building a real venv. No git stub on
+# purpose — LiteLLM is pip-installed, git must not be required.
 make_install_stubs() {
   local dir="$1"
   mkdir -p "$dir"
-  cat >"$dir/git" <<'EOS'
-#!/bin/bash
-if [ "$1" = "clone" ]; then
-  dest="${*: -1}"
-  mkdir -p "$dest/.git"
-  echo "fastapi" >"$dest/requirements.txt"
-  echo "print('stub')" >"$dest/start_proxy.py"
-fi
-exit 0
-EOS
   cat >"$dir/python3" <<'EOS'
 #!/bin/bash
 if [ "$1" = "-m" ] && [ "$2" = "venv" ]; then
   mkdir -p "$3/bin" "$3/lib"
   printf '#!/bin/bash\nexit 0\n' >"$3/bin/pip"
   printf '#!/bin/bash\nexit 0\n' >"$3/bin/python"
-  chmod 755 "$3/bin/pip" "$3/bin/python"
+  printf '#!/bin/bash\nexit 0\n' >"$3/bin/litellm"
+  chmod 755 "$3/bin/pip" "$3/bin/python" "$3/bin/litellm"
 fi
 exit 0
 EOS
   printf '#!/bin/bash\nexit 0\n' >"$dir/claude"
-  chmod 755 "$dir/git" "$dir/python3" "$dir/claude"
+  chmod 755 "$dir/python3" "$dir/claude"
 }
 
 # Kill a proxy the launcher may have left behind and remove temp files.

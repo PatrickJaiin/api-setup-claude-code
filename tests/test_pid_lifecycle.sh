@@ -25,7 +25,7 @@ out="$(bash "$LAUNCHER" start 2>&1)"
 assert_rc 0 $? "start succeeds"
 assert_contains "$out" "healthy" "start reports healthy"
 assert_file "$pid_file" "PID file created"
-assert_mode 600 "$GLM_CLAUDE_HOME/claude-code-proxy/.env" "regenerated .env is mode 600"
+assert_mode 600 "$GLM_CLAUDE_HOME/litellm.yaml" "regenerated litellm.yaml is mode 600"
 
 out="$(bash "$LAUNCHER" start 2>&1)"
 assert_rc 0 $? "second start is a no-op success"
